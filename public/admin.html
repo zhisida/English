@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-ui-theme="willow">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#2E7D6A" />
+  <meta name="robots" content="noindex" />
+  <title>管理后台 · 邦邦老师智能体</title>
+  <link rel="icon" href="/assets/favicon-32.png?v=2" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/admin.css" />
+</head>
+<body>
+  <header class="admin-bar">
+    <div class="admin-brand">
+      <span class="admin-logo">⚙️</span>
+      <div>
+        <div class="admin-title">管理后台</div>
+        <div class="admin-sub" id="admin-sub">模型与站点配置</div>
+      </div>
+    </div>
+    <div class="admin-actions">
+      <select id="theme-select" class="field field-sm" title="界面风格"></select>
+      <a class="btn btn-ghost" href="/">← 返回前台</a>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <!-- status -->
+    <div class="card-block">
+      <div class="block-head"><h2>状态</h2></div>
+      <div class="status-row">
+        <span id="status-badge" class="badge badge-warn">读取中…</span>
+        <span class="status-hint" id="status-hint"></span>
+      </div>
+    </div>
+
+    <!-- site settings -->
+    <div class="card-block">
+      <div class="block-head"><h2>站点设置</h2></div>
+      <label class="field-row">
+        <span class="field-label">站点名称</span>
+        <input id="f-title" class="field" type="text" maxlength="60" />
+      </label>
+      <label class="field-row">
+        <span class="field-label">副标题</span>
+        <input id="f-subtitle" class="field" type="text" maxlength="120" />
+      </label>
+    </div>
+
+    <!-- backend -->
+    <div class="card-block">
+      <div class="block-head"><h2>模型后端</h2></div>
+      <label class="field-row">
+        <span class="field-label">API 地址 (apiBase)</span>
+        <input id="f-apibase" class="field" type="text" placeholder="https://your-backend/api/chat   （留空 = 演示模式）" />
+      </label>
+      <p class="help">
+        配置后，前台的对话会转发到此地址：<code>POST {apiBase}</code>，body 为
+        <code>{ agent, model, phase, messages }</code>，期望返回 JSON
+        <code>{ reply }</code>。留空则前端显示演示回复。
+      </p>
+    </div>
+
+    <!-- models -->
+    <div class="card-block">
+      <div class="block-head">
+        <h2>模型管理</h2>
+        <button id="btn-add-model" class="btn btn-ghost btn-sm">＋ 添加模型</button>
+      </div>
+      <div class="models-head">
+        <span class="c-default" title="设为默认">默认</span>
+        <span class="c-enabled" title="启用">启用</span>
+        <span class="c-id">模型 ID</span>
+        <span class="c-label">显示名</span>
+        <span class="c-ops">操作</span>
+      </div>
+      <div id="model-list"></div>
+      <p class="help">前台顶部的「模型」下拉只显示已启用的模型；默认模型用于首次访问与未指定时。</p>
+    </div>
+
+    <div class="save-bar">
+      <span id="save-msg" class="save-msg"></span>
+      <button id="btn-save" class="btn btn-primary">保存配置</button>
+    </div>
+  </main>
+
+  <script src="/admin.js"></script>
+</body>
+</html>

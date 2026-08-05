@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-ui-theme="willow">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Favicon -->
+  <link rel="shortcut icon" href="./assets/favicon.ico?v=2" type="image/x-icon" />
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32.png?v=2" />
+  <link rel="icon" type="image/png" sizes="192x192" href="./assets/favicon-192.png?v=2" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/favicon-192.png?v=2" />
+  <meta name="theme-color" content="#2E7D6A" />
+
+  <!-- SEO -->
+  <title>邦邦老师智能体</title>
+  <meta name="description"
+    content="邦邦老师智能体 — 由唐邦顺老师与李江老师携手开发，汇集多个AI智能体的教学平台。覆盖高中、初中、及部分小学学段，提供包括语篇深度研读、阅读课堂设计、词汇语法写作教学、高考中考试卷命题等专业化内容，并设计了教学图片生成、超标词排查、试题全解课堂投影等配套工具，助力教师精准备课与学生高效学习。" />
+  <meta name="keywords"
+    content="邦邦老师,邦邦老师智能体,英语教学,AI教学,智能体,语篇研读,试卷分析,英语备课,教学辅助,命题,高考,中考,高中,初中,小学,唐邦顺,李江,邦邦老师Studio" />
+  <meta name="author" content="邦邦老师智能体" />
+  <link rel="canonical" href="https://english.teachering.work/" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://english.teachering.work/" />
+  <meta property="og:title" content="邦邦老师智能体 — AI 辅助教学平台" />
+  <meta property="og:description"
+    content="唐邦顺老师与李江老师携手开发，覆盖高中、初中学段，适配部分小学。提供语篇研读、课堂设计、试题讲解、中高考命题、词汇语法写作等教学智能体工具。" />
+  <meta property="og:image" content="https://english.teachering.work/favicon-512.png" />
+  <meta property="og:locale" content="zh_CN" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "邦邦老师智能体",
+    "url": "https://english.teachering.work/",
+    "description": "邦邦老师智能体 — 由唐邦顺老师与李江老师携手开发，汇集多个AI智能体的教学平台。",
+    "applicationCategory": "EducationalApplication",
+    "operatingSystem": "Web",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "CNY" }
+  }
+  </script>
+
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+
+<body>
+  <div id="root" class="app">
+    <!-- ============ TOP BAR ============ -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <!-- mobile: open sidebar -->
+        <button id="btn-sidebar" class="icon-btn md:hidden" aria-label="打开侧栏" title="打开侧栏">
+          <svg viewBox="0 0 24 24" class="ic"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
+
+        <!-- 学段 selector -->
+        <div class="select" id="sel-phase" data-open="false">
+          <button class="pill pill-phase" type="button" aria-haspopup="listbox" aria-expanded="false" title="学段">
+            <span class="pill-label" id="phase-label">高中</span>
+            <svg class="caret" viewBox="0 0 20 20"><path d="M6 8l4 5 4-5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="menu" role="listbox" id="menu-phase"></div>
+        </div>
+
+        <!-- model selector -->
+        <div class="select" id="sel-model" data-open="false">
+          <button class="pill pill-model" type="button" aria-haspopup="listbox" aria-expanded="false" title="选择模型">
+            <span class="pill-label" id="model-label">gemini-3-flash</span>
+            <svg class="caret" viewBox="0 0 20 20"><path d="M6 8l4 5 4-5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="menu" role="listbox" id="menu-model"></div>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <button id="btn-new" class="icon-btn hidden-mobile" aria-label="新建会话" title="新建会话">
+          <svg viewBox="0 0 24 24" class="ic"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+
+        <!-- theme switcher -->
+        <div class="select" id="sel-theme" data-open="false">
+          <button class="icon-btn" type="button" aria-label="切换界面风格" title="切换界面风格">
+            <svg viewBox="0 0 24 24" class="ic"><circle cx="12" cy="12" r="5.8" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 2.5v2.3M12 19.2v2.3M4.7 4.7l1.7 1.7M17.6 17.6l1.7 1.7M2.5 12h2.3M19.2 12h2.3M4.7 19.3l1.7-1.7M17.6 6.4l1.7-1.7" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          </button>
+          <div class="menu menu-themes" role="listbox" id="menu-theme"></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- backdrop for mobile sidebar -->
+    <div class="backdrop" id="backdrop"></div>
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <span class="brand-logo">📚</span>
+        <span class="brand-name">邦邦老师智能体</span>
+      </div>
+
+      <nav class="side-nav" id="side-nav"><!-- sections injected here --></nav>
+
+      <div class="history">
+        <h3 class="history-title">📜 历史记录</h3>
+        <ul class="history-list" id="history-list"><!-- injected --></ul>
+      </div>
+
+      <div class="side-foot">公众号：邦邦英语单词</div>
+    </aside>
+
+    <!-- ============ MAIN / CHAT ============ -->
+    <main class="main" id="main">
+      <div class="chat" id="chat">
+        <div class="chat-head">
+          <button id="btn-close-chat" class="icon-btn md:hidden" aria-label="返回" title="返回">
+            <svg viewBox="0 0 24 24" class="ic"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <span class="chat-title" id="chat-title">语篇深度分析</span>
+          <button id="btn-clear" class="icon-btn" aria-label="清空对话" title="清空对话">
+            <svg viewBox="0 0 24 24" class="ic"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+
+        <div class="messages" id="messages"></div>
+
+        <div class="composer">
+          <div class="composer-row">
+            <textarea id="input" class="input" rows="1" placeholder="Paste your article below to get an in-depth reading report"></textarea>
+            <button id="btn-send" class="btn-send" title="发送">
+              <svg viewBox="0 0 24 24" class="ic"><path d="M4 12l16-8-6 16-3-7-7-1z" fill="currentColor"/></svg>
+            </button>
+          </div>
+          <div class="composer-foot">
+            <button id="btn-code" class="btn-ghost">使用码</button>
+            <span class="composer-hint">公众号：邦邦英语单词</span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ============ 使用码 MODAL ============ -->
+  <div class="modal" id="modal-code" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <span>使用码</span>
+        <button class="icon-btn" id="modal-close" aria-label="关闭"><svg viewBox="0 0 24 24" class="ic"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-text">输入使用码以解锁完整功能。</p>
+        <input id="code-input" class="input-line" type="text" placeholder="请输入使用码" />
+        <button id="btn-use-code" class="btn-primary">使用</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+
+</html>
