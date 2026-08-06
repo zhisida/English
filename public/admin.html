@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#2E7D6A" />
   <meta name="robots" content="noindex" />
-  <title>管理后台 · 邦邦老师智能体</title>
+  <title>管理后台 · 依依老师课堂</title>
   <link rel="icon" href="/assets/favicon-32.png?v=2" />
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/admin.css" />
@@ -53,12 +53,16 @@
       <div class="block-head"><h2>模型后端</h2></div>
       <label class="field-row">
         <span class="field-label">API 地址 (apiBase)</span>
-        <input id="f-apibase" class="field" type="text" placeholder="https://your-backend/api/chat   （留空 = 演示模式）" />
+        <input id="f-apibase" class="field" type="text" placeholder="https://your-backend/v1   （留空 = 演示模式）" />
+      </label>
+      <label class="field-row">
+        <span class="field-label">API Key</span>
+        <input id="f-apikey" class="field" type="password" placeholder="sk-...   （OpenAI 兼容鉴权；留空则按自定义后端透传）" />
       </label>
       <p class="help">
-        配置后，前台的对话会转发到此地址：<code>POST {apiBase}</code>，body 为
-        <code>{ agent, model, phase, messages }</code>，期望返回 JSON
-        <code>{ reply }</code>。留空则前端显示演示回复。
+        同时填写 <b>API 地址 + API Key</b> 时，按 OpenAI 兼容协议调用
+        <code>POST {apiBase}/chat/completions</code>（Bearer 鉴权），并按当前智能体自动注入 system prompt。
+        仅填 API 地址、不填 Key 时，按自定义后端透传 <code>{ agent, model, phase, messages }</code>。两者皆留空则显示演示回复。
       </p>
     </div>
 

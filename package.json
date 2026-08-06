@@ -1,8 +1,8 @@
 {
-  "name": "bangbang-teacher",
+  "name": "yiyi-classroom",
   "version": "1.0.0",
   "private": true,
-  "description": "邦邦老师智能体 — Node.js 复刻，含管理后台",
+  "description": "依依老师课堂 — Node.js 复刻，含管理后台",
   "type": "commonjs",
   "main": "server.js",
   "scripts": {

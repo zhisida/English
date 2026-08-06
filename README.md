@@ -1,4 +1,4 @@
-# 邦邦老师智能体 · Node.js 复刻
+# 依依老师课堂 · Node.js 复刻
 
 对 [english.teachering.work](https://english.teachering.work/) 的功能复刻 —— 一个面向英语教师的 AI
 智能体聚合平台。**前端忠实还原原站的设计与交互**（5 套主题、学段 / 模型切换、26 个教学智能体、
@@ -21,7 +21,7 @@ npm run dev          # 带 --watch 热重载
 - 前台： http://localhost:3000
 - 管理后台： http://localhost:3000/manage （也可用原站路径 `/manage-996j`、`/prompt-manage`）
 
-默认是**演示模式**：对话返回演示回复。在管理后台填写「API 地址 (apiBase)」后，对话会转发到你的真实模型后端。
+默认是**演示模式**：对话返回演示回复。要接入真实模型，把 `data/config.example.json` 复制为 `data/config.json` 并填入 `apiKey`（或在管理后台填写「API 地址 + API Key」），对话即走 OpenAI 兼容协议调用真实模型。
 
 ---
 
@@ -32,9 +32,10 @@ npm run dev          # 带 --watch 热重载
 ├── server.js              # Express 服务：静态资源 + 配置 API + 聊天代理
 ├── package.json
 ├── data/
-│   └── config.json        # 持久化配置（标题 / apiBase / 模型列表 / 默认模型）—— 管理后台直接读写
+│   ├── config.example.json  # 配置模板（已提交，不含密钥）；首次部署复制为 config.json
+│   └── config.json          # 运行时配置（含 API Key，已 gitignore）—— 管理后台直接读写
 └── public/                # 前端静态资源
-    ├── index.html         # 应用外壳（顶栏 / 侧栏 / 对话区 / 使用码弹窗）
+    ├── index.html         # 应用外壳（顶栏 / 侧栏 / 对话区）
     ├── styles.css         # 设计系统：5 套主题 CSS 变量 + 布局 + 组件
     ├── app.js             # 前端逻辑：渲染 / 主题 / 学段模型 / 卡片→对话 / 发送 / 历史 / 本地持久化
     ├── admin.html         # 管理后台页面
@@ -51,12 +52,26 @@ npm run dev          # 带 --watch 热重载
 |---|---|---|
 | `GET`  | `/api/config` | 公共配置（前端启动读取）：`appTitle` / `defaultModel` / `models`（仅启用的）/ `chatReady` |
 | `GET`  | `/api/admin/config` | 完整配置（管理后台读取） |
-| `POST` | `/api/admin/config` | 保存配置，body：`{ appTitle?, subtitle?, apiBase?, defaultModel?, models? }` |
+| `POST` | `/api/admin/config` | 保存配置，body：`{ appTitle?, subtitle?, apiBase?, apiKey?, defaultModel?, models? }` |
 | `POST` | `/api/chat` | 对话代理。body：`{ agent, model, phase, messages }`；配了 `apiBase` 则转发，否则返回演示回复 |
 
 ### 接入真实模型后端
 
-`/api/chat` 在配置了 `apiBase` 后会：
+`/api/chat` 有两种工作模式（由配置自动选择）：
+
+**① OpenAI 兼容（推荐 · 同时填 apiBase + apiKey）**
+
+```
+POST {apiBase}/chat/completions
+Authorization: Bearer {apiKey}
+Content-Type: application/json
+{ "model": "glm-5.2", "messages": [ { "role": "system", ... }, { "role": "user", "content": "..." } ], "stream": false }
+```
+
+服务端会按当前智能体 + 学段自动注入 `system` prompt，并取 `choices[0].message.content` 作为回复。
+任何 OpenAI 兼容端点（GLM / DeepSeek / Moonshot / 自建网关等）只要填上 `apiBase`（到 `/v1`）和 `apiKey` 即可用。
+
+**② 自定义后端（只填 apiBase、不填 apiKey）**
 
 ```
 POST {apiBase}
@@ -64,8 +79,9 @@ Content-Type: application/json
 { "agent": "...", "model": "...", "phase": "...", "messages": [{ "role": "user|assistant", "content": "..." }] }
 ```
 
-并期望返回 JSON `{ "reply": "..." }`（也兼容 `{ content | text }` 或纯文本）。把你的网关 / 模型服务适配成这个约定即可。
-也可以直接修改 `server.js` 的 `/api/chat`，按你的上游协议（OpenAI / Vertex / 自研）做流式转发。
+期望返回 JSON `{ "reply": "..." }`（也兼容 `{ content | text }` 或纯文本）。把你的网关 / 模型服务适配成这个约定即可。
+
+也可直接改 `server.js` 的 `/api/chat`，按你的上游协议做流式 (SSE) 转发。
 
 ---
 

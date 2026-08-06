@@ -1,5 +1,5 @@
 /* =========================================================================
-   邦邦老师智能体 — Node.js (Express) 后端
+   依依老师课堂 — Node.js (Express) 后端
    - 提供前端静态资源
    - /api/config          公共配置（前端启动时读取）
    - /api/admin/config    管理后台：读取 / 保存配置（模型、默认模型、API 地址等）
@@ -14,18 +14,19 @@ const path = require("path");
 const app = express();
 const PORT = process.env.PORT || 3000;
 const CONFIG_FILE = path.join(__dirname, "data", "config.json");
+const EXAMPLE_FILE = path.join(__dirname, "data", "config.example.json");
 
 app.use(express.json({ limit: "8mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 /* ----------------------------- config store ---------------------------- */
 function loadConfig() {
-  try {
-    return JSON.parse(fs.readFileSync(CONFIG_FILE, "utf-8"));
-  } catch (e) {
-    console.error("读取配置失败，使用默认配置:", e.message);
-    return { appTitle: "邦邦老师智能体", apiBase: "", defaultModel: "", models: [] };
+  // 运行时配置（含密钥）优先；缺失时回退到提交在仓库里的模板（演示模式）。
+  for (const f of [CONFIG_FILE, EXAMPLE_FILE]) {
+    try { return JSON.parse(fs.readFileSync(f, "utf-8")); } catch {}
   }
+  console.error("读取配置失败，使用内置默认配置");
+  return { appTitle: "依依老师课堂", apiBase: "", apiKey: "", defaultModel: "", models: [] };
 }
 function saveConfig(cfg) {
   fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true });
@@ -69,6 +70,7 @@ app.post("/api/admin/config", (req, res) => {
   if (typeof body.appTitle === "string") cfg.appTitle = body.appTitle.trim().slice(0, 60);
   if (typeof body.subtitle === "string") cfg.subtitle = body.subtitle.trim().slice(0, 120);
   if (typeof body.apiBase === "string") cfg.apiBase = body.apiBase.trim();
+  if (typeof body.apiKey === "string") cfg.apiKey = body.apiKey.trim();
 
   if (Array.isArray(body.models)) {
     const models = validateModels(body.models);
@@ -92,9 +94,11 @@ app.post("/api/admin/config", (req, res) => {
 });
 
 /* ---- chat proxy ----
-   配置了 apiBase 时，把对话转发到真实后端；否则返回演示回复。
-   上游约定：POST {apiBase}  body: { model, messages, agent, phase }
-   返回：JSON { reply|content|text } 或纯文本。 */
+   - 未配置 apiBase：返回演示回复。
+   - apiBase + apiKey：按 OpenAI 兼容协议 POST {apiBase}/chat/completions，
+     Bearer 鉴权，并按当前智能体自动注入 system prompt。
+   - 仅 apiBase（无 key）：按自定义后端透传 { agent, model, phase, messages }，
+     期望返回 { reply|content|text } 或纯文本。 */
 app.post("/api/chat", async (req, res) => {
   const cfg = loadConfig();
   const { agent = "developer", model, phase = "senior", messages = [] } = req.body || {};
@@ -103,20 +107,42 @@ app.post("/api/chat", async (req, res) => {
     return res.json({ reply: demoReply(agent, lastUserText(messages), cfg), demo: true });
   }
 
+  // 规整对话：丢弃空轮（含前端末尾的空 bot 占位），bot→assistant
+  const turns = messages
+    .map(m => ({ role: m.role === "bot" ? "assistant" : m.role, content: (m.content || "").trim() }))
+    .filter(m => m.role === "system" || m.role === "user" || m.role === "assistant")
+    .filter(m => m.content);
+
   try {
+    if (cfg.apiKey) {
+      const url = cfg.apiBase.replace(/\/+$/, "") + "/chat/completions";
+      const upstream = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${cfg.apiKey}` },
+        body: JSON.stringify({
+          model: model || cfg.defaultModel,
+          messages: [{ role: "system", content: systemPrompt(agent, phase, cfg) }, ...turns],
+          stream: false,
+          temperature: 0.6,
+        }),
+      });
+      if (!upstream.ok) {
+        const errText = await upstream.text().catch(() => "");
+        return res.status(502).json({ error: `模型后端返回 HTTP ${upstream.status}` + (errText ? `：${errText.slice(0, 200)}` : "") });
+      }
+      const data = await upstream.json();
+      const reply = data?.choices?.[0]?.message?.content ?? data?.choices?.[0]?.text ?? data?.content ?? data?.reply ?? "";
+      if (!reply) return res.json({ reply: "（模型未返回正文）\n" + JSON.stringify(data).slice(0, 300) });
+      return res.json({ reply });
+    }
+
+    // 自定义后端透传
     const upstream = await fetch(cfg.apiBase, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        agent, model: model || cfg.defaultModel, phase,
-        messages: messages.map(m => ({ role: m.role === "bot" ? "assistant" : "user", content: m.content })),
-      }),
+      body: JSON.stringify({ agent, model: model || cfg.defaultModel, phase, messages: turns }),
     });
-
-    if (!upstream.ok) {
-      return res.status(502).json({ error: `上游返回 HTTP ${upstream.status}` });
-    }
-
+    if (!upstream.ok) return res.status(502).json({ error: `上游返回 HTTP ${upstream.status}` });
     const ct = upstream.headers.get("content-type") || "";
     if (ct.includes("application/json")) {
       const data = await upstream.json();
@@ -125,7 +151,7 @@ app.post("/api/chat", async (req, res) => {
     const text = await upstream.text();
     return res.json({ reply: text });
   } catch (e) {
-    return res.status(502).json({ error: "转发失败: " + e.message });
+    return res.status(502).json({ error: "转发失败：" + e.message });
   }
 });
 
@@ -154,6 +180,17 @@ const AGENT_LABEL = {
   clozetest: "辅助完形填空命题", exam: "试题解读分析", bugdetector: "英语试题Bug侦察",
   overvocabdetect: "超标词排查+替换", developer: "自由对话",
 };
+const PHASE_LABEL = { senior: "高中", junior: "初中", custom: "小学" };
+function systemPrompt(agent, phase, cfg) {
+  const label = AGENT_LABEL[agent] || "教学智能体";
+  const ph = PHASE_LABEL[phase] || "基础教育";
+  const title = cfg.appTitle || "依依老师课堂";
+  return [
+    `你是「${title}」中的「${label}」智能体，服务对象是中国英语教师，当前学段为${ph}。`,
+    `你的职责是：${label}。请就用户提交的内容完成该项工作。`,
+    "输出要求：使用简体中文；专业准确、条理清晰；直接给出可用于备课或课堂的成果（必要时用小标题或列表组织）；若信息不足，先简短说明需补充什么，再给出基于现有信息的尽量完整的方案。",
+  ].join("\n");
+}
 function demoReply(agent, text, cfg) {
   const label = AGENT_LABEL[agent] || "智能体";
   const preview = text.length > 60 ? text.slice(0, 60) + "…" : text;
@@ -168,7 +205,7 @@ function demoReply(agent, text, cfg) {
 /* ----------------------------- boot ------------------------------------ */
 app.listen(PORT, () => {
   const cfg = loadConfig();
-  console.log(`\n  邦邦老师智能体 已启动 →  http://localhost:${PORT}`);
+  console.log(`\n  依依老师课堂 已启动 →  http://localhost:${PORT}`);
   console.log(`  管理后台       →  http://localhost:${PORT}/manage`);
   console.log(`  模型后端       →  ${cfg.apiBase ? "已配置" : "未配置（演示模式）"}\n`);
 });

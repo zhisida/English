@@ -1,5 +1,5 @@
 /* =========================================================================
-   邦邦老师智能体 — 静态复刻交互
+   依依老师课堂 — 静态复刻交互
    ========================================================================= */
 
 /* ---- Backend -----------------------------------------------------------
@@ -36,7 +36,7 @@ let MODELS = [
   { id: "vertex/gemini-3.1-pro-preview",   label: "gemini-3.1-pro" },
   { id: "vertex/gemini-3.6-flash",         label: "gemini-3.6-flash" },
 ];
-let APP_TITLE = "邦邦老师智能体";
+let APP_TITLE = "依依老师课堂";
 
 /* line icons (inner SVG markup); monochrome, inherit currentColor */
 const ICON = {
@@ -96,7 +96,7 @@ const AGENTS = [
   { id: "exam",            label: "试题解读分析",    section: "test", icon: "chart",  ph: "粘贴试题，生成解读分析" },
   { id: "bugdetector",     label: "英语试题Bug侦察", section: "test", icon: "bug",    ph: "粘贴试题，排查命题 Bug" },
   { id: "overvocabdetect", label: "超标词排查+替换", section: "test", icon: "shield", ph: "粘贴文本，排查超标词并给出替换" },
-  { id: "developer",       label: "自由对话",        section: "test", icon: "chat",   ph: "和邦邦老师自由对话，提问任何教学问题" },
+  { id: "developer",       label: "自由对话",        section: "test", icon: "chat",   ph: "和依依老师自由对话，提问任何教学问题" },
 ];
 
 const SECTIONS = [
@@ -109,7 +109,7 @@ const STORE_KEY = "bb_teacher_state_v1";
 const DEFAULT_STATE = {
   theme: "willow",
   phase: "senior",
-  model: "vertex/gemini-3-flash-preview",
+  model: "glm-5.2",
   agent: "analysis",
   collapsed: { teach: false, test: false },
   conversations: {}, // { agentId: [{role:'user'|'bot', content}] }
@@ -418,17 +418,6 @@ $("#btn-clear").addEventListener("click", () => {
   saveState(); renderChat();
 });
 $("#btn-close-chat").addEventListener("click", () => { openSidebar(); });
-
-/* 使用码 modal */
-function openModal() { $("#modal-code").setAttribute("aria-hidden", "false"); }
-function closeModal() { $("#modal-code").setAttribute("aria-hidden", "true"); }
-$("#btn-code").addEventListener("click", openModal);
-$("#modal-close").addEventListener("click", closeModal);
-$("#modal-code").addEventListener("click", (e) => { if (e.target.id === "modal-code" || e.target.classList.contains("modal-card")) {} if (e.target === $("#modal-code")) closeModal(); });
-$("#btn-use-code").addEventListener("click", () => {
-  const v = $("#code-input").value.trim();
-  alert(v ? `使用码「${v}」已提交（演示）。` : "请输入使用码。");
-});
 
 /* ----------------------------- BOOT ------------------------------------ */
 async function init() {

@@ -1,5 +1,5 @@
 /* =========================================================================
-   邦邦老师智能体 — 静态复刻样式
+   依依老师课堂 — 静态复刻样式
    Design tokens ported 1:1 from the source site's runtime CSS variables.
    ========================================================================= */
 
@@ -365,8 +365,6 @@ svg.ic { width: 22px; height: 22px; display: block; }
 .history-item .h-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .history-empty { padding: 6px 9px; font-size: 12px; color: var(--ui-muted-weak); }
 
-.side-foot { flex: none; padding: 8px 16px 12px; font-size: 11px; color: var(--ui-muted-weak); }
-
 /* =========================================================================
    Chat
    ========================================================================= */
@@ -421,29 +419,6 @@ svg.ic { width: 22px; height: 22px; display: block; }
 .btn-send:hover { background: var(--ui-accent-strong); }
 .btn-send:disabled { opacity: .45; cursor: not-allowed; }
 .btn-send svg { width: 18px; height: 18px; }
-.composer-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
-.btn-ghost {
-  padding: 5px 12px; border-radius: 999px; font-size: 13px;
-  color: var(--ui-accent); border: 1px solid var(--ui-accent-border);
-  background: transparent; transition: background-color .12s ease;
-}
-.btn-ghost:hover { background: var(--ui-accent-soft); }
-.composer-hint { font-size: 11px; color: var(--ui-muted-weak); }
-
-/* =========================================================================
-   Modal (使用码)
-   ========================================================================= */
-.modal { position: fixed; inset: 0; z-index: 100; display: none; align-items: center; justify-content: center; padding: 20px; }
-.modal[aria-hidden="false"] { display: flex; }
-.modal::before { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,.45); }
-.modal-card { position: relative; width: 100%; max-width: 380px; background: var(--ui-panel); border: 1px solid var(--ui-border); border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
-.modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; font-size: 16px; font-weight: 700; color: var(--ui-title-accent); }
-.modal-body { padding: 0 18px 20px; display: flex; flex-direction: column; gap: 12px; }
-.modal-text { margin: 0; font-size: 14px; color: var(--ui-muted); }
-.input-line { padding: 10px 13px; border-radius: 12px; background: var(--ui-input-bg); color: var(--ui-text); border: 1px solid var(--ui-border); font-size: 15px; font-family: inherit; }
-.input-line:focus { outline: none; border-color: var(--ui-accent); box-shadow: 0 0 0 3px var(--ui-accent-soft); }
-.btn-primary { padding: 10px 16px; border-radius: 12px; background: var(--ui-accent); color: var(--ui-on-accent); font-size: 15px; font-weight: 600; transition: background-color .15s ease; }
-.btn-primary:hover { background: var(--ui-accent-strong); }
 
 /* mobile backdrop */
 .backdrop { position: fixed; inset: 0; z-index: 55; background: rgba(0,0,0,.4); opacity: 0; pointer-events: none; transition: opacity .2s ease; }

@@ -5,3 +5,6 @@ _src/
 Thumbs.db
 .vscode/
 .idea/
+
+# runtime config (contains API key) — copy from data/config.example.json
+data/config.json

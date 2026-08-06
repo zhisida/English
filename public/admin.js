@@ -32,6 +32,7 @@ async function load() {
     $("#f-title").value = cfg.appTitle || "";
     $("#f-subtitle").value = cfg.subtitle || "";
     $("#f-apibase").value = cfg.apiBase || "";
+    $("#f-apikey").value = cfg.apiKey || "";
     renderModels(cfg.models || [], cfg.defaultModel);
     updateStatus(cfg);
   } catch (e) {
@@ -40,8 +41,9 @@ async function load() {
 }
 
 function updateStatus(cfg) {
-  setStatus(Boolean(cfg.apiBase),
-    cfg.apiBase ? `已配置：${cfg.apiBase}` : "未配置 API 地址（演示模式，对话返回演示回复）");
+  if (!cfg.apiBase) return setStatus(false, "未配置 API 地址（演示模式，对话返回演示回复）");
+  const mode = cfg.apiKey ? "OpenAI 兼容" : "自定义后端透传";
+  setStatus(true, `${mode}：${cfg.apiBase}${cfg.defaultModel ? ` · 默认 ${cfg.defaultModel}` : ""}`);
 }
 function setStatus(ok, hint) {
   const b = $("#status-badge");
@@ -137,9 +139,10 @@ $("#btn-save").addEventListener("click", async () => {
     return;
   }
   const body = {
-    appTitle: $("#f-title").value.trim() || "邦邦老师智能体",
+    appTitle: $("#f-title").value.trim() || "依依老师课堂",
     subtitle: $("#f-subtitle").value.trim(),
     apiBase: $("#f-apibase").value.trim(),
+    apiKey: $("#f-apikey").value.trim(),
     defaultModel: gatherDefault() || models[0].id,
     models,
   };
