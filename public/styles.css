@@ -407,7 +407,11 @@ svg.ic { width: 22px; height: 22px; display: block; }
   border: 1px solid var(--ui-border);
   font-size: 15px; line-height: 1.5; font-family: inherit;
   transition: border-color .15s ease, box-shadow .15s ease;
+  scrollbar-gutter: auto;        /* 覆盖 html 继承来的 stable，不在右侧预留滚动条槽 */
+  scrollbar-width: none;         /* Firefox：隐藏滚动条 */
+  -ms-overflow-style: none;
 }
+.input::-webkit-scrollbar { width: 0; height: 0; }  /* Chromium：隐藏滚动条 */
 .input::placeholder { color: var(--ui-muted-weak); }
 .input:focus { outline: none; border-color: var(--ui-accent); box-shadow: 0 0 0 3px var(--ui-accent-soft); }
 .btn-send {
