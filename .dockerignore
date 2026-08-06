@@ -1,0 +1,10 @@
+node_modules
+_src
+.git
+.gitignore
+.claude
+*.log
+.DS_Store
+Thumbs.db
+data/config.json
+README.md

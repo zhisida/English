@@ -10,23 +10,36 @@
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const CONFIG_FILE = path.join(__dirname, "data", "config.json");
-const EXAMPLE_FILE = path.join(__dirname, "data", "config.example.json");
+const EXAMPLE_FILES = [
+  path.join(__dirname, "data", "config.example.json"), // 本地开发 / 宿主机挂载
+  path.join(__dirname, "config.example.json"),         // 烤进镜像根目录（避免被 data 卷遮蔽）
+];
 
 app.use(express.json({ limit: "8mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 /* ----------------------------- config store ---------------------------- */
 function loadConfig() {
-  // 运行时配置（含密钥）优先；缺失时回退到提交在仓库里的模板（演示模式）。
-  for (const f of [CONFIG_FILE, EXAMPLE_FILE]) {
+  // 运行时配置（含密钥）优先；缺失时依次回退到模板（演示模式）。
+  for (const f of [CONFIG_FILE, ...EXAMPLE_FILES]) {
     try { return JSON.parse(fs.readFileSync(f, "utf-8")); } catch {}
   }
   console.error("读取配置失败，使用内置默认配置");
   return { appTitle: "依依老师课堂", apiBase: "", apiKey: "", defaultModel: "", models: [] };
+}
+// 运行时读取：在文件配置之上叠加环境变量（API_BASE / API_KEY / APP_TITLE），便于容器化部署。
+// 注意：管理后台的读 / 写仍用 loadConfig()（纯文件），避免把环境变量写回文件。
+function runtimeConfig() {
+  const cfg = loadConfig();
+  if (process.env.API_BASE) cfg.apiBase = process.env.API_BASE.trim();
+  if (process.env.API_KEY) cfg.apiKey = process.env.API_KEY.trim();
+  if (process.env.APP_TITLE) cfg.appTitle = process.env.APP_TITLE.trim().slice(0, 60);
+  return cfg;
 }
 function saveConfig(cfg) {
   fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true });
@@ -54,16 +67,58 @@ function validateModels(arr) {
   return out;
 }
 
+/* ----------------------------- admin auth ------------------------------ */
+// 管理后台鉴权：HTTP Basic。凭据优先级：环境变量 ADMIN_USER/ADMIN_PASS >
+// data/config.json 的 adminUser/adminPass > 首次启动自动生成（持久化并打印日志），
+// 保证默认即安全。
+function safeEq(a, b) {
+  const ba = Buffer.from(a), bb = Buffer.from(b);
+  return ba.length === bb.length && crypto.timingSafeEqual(ba, bb);
+}
+function resolveAdminCreds() {
+  const cfg = loadConfig();
+  const user = (process.env.ADMIN_USER || cfg.adminUser || "admin").trim();
+  if (process.env.ADMIN_PASS && process.env.ADMIN_PASS.trim()) {
+    return { user, pass: process.env.ADMIN_PASS.trim(), source: "环境变量" };
+  }
+  if (cfg.adminPass) {
+    return { user: cfg.adminUser || user, pass: cfg.adminPass, source: "配置文件" };
+  }
+  const pass = crypto.randomBytes(9).toString("base64").slice(0, 14);
+  try { saveConfig({ ...cfg, adminUser: user, adminPass: pass }); } catch {}
+  return { user, pass, source: "自动生成" };
+}
+function requireAdmin(req, res, next) {
+  const { user, pass } = resolveAdminCreds();
+  const auth = req.headers.authorization || "";
+  let ok = false;
+  if (auth.startsWith("Basic ")) {
+    let decoded = "";
+    try { decoded = Buffer.from(auth.slice(6), "base64").toString("utf-8"); } catch {}
+    const idx = decoded.indexOf(":");
+    if (idx >= 0) ok = safeEq(decoded.slice(0, idx), user) && safeEq(decoded.slice(idx + 1), pass);
+  }
+  if (!ok) {
+    res.setHeader("WWW-Authenticate", 'Basic realm="yiyi-classroom admin"');
+    return res.status(401).send("需要管理员鉴权");
+  }
+  next();
+}
+function stripAdminCreds(cfg) {
+  const { adminPass, ...rest } = cfg;   // 不把密码返回给前端
+  return rest;
+}
+
 /* ----------------------------- routes ---------------------------------- */
 app.get("/api/config", (_req, res) => {
-  res.json(publicConfig(loadConfig()));
+  res.json(publicConfig(runtimeConfig()));
 });
 
-app.get("/api/admin/config", (_req, res) => {
-  res.json(loadConfig());
+app.get("/api/admin/config", requireAdmin, (_req, res) => {
+  res.json(stripAdminCreds(loadConfig()));
 });
 
-app.post("/api/admin/config", (req, res) => {
+app.post("/api/admin/config", requireAdmin, (req, res) => {
   const cfg = loadConfig();
   const body = req.body || {};
 
@@ -90,7 +145,7 @@ app.post("/api/admin/config", (req, res) => {
   try { saveConfig(cfg); }
   catch (e) { return res.status(500).json({ error: "保存失败: " + e.message }); }
 
-  res.json({ ok: true, config: cfg, public: publicConfig(cfg) });
+  res.json({ ok: true, config: stripAdminCreds(cfg), public: publicConfig(cfg) });
 });
 
 /* ---- chat proxy ----
@@ -100,7 +155,7 @@ app.post("/api/admin/config", (req, res) => {
    - 仅 apiBase（无 key）：按自定义后端透传 { agent, model, phase, messages }，
      期望返回 { reply|content|text } 或纯文本。 */
 app.post("/api/chat", async (req, res) => {
-  const cfg = loadConfig();
+  const cfg = runtimeConfig();
   const { agent = "developer", model, phase = "senior", messages = [] } = req.body || {};
 
   if (!cfg.apiBase) {
@@ -157,7 +212,7 @@ app.post("/api/chat", async (req, res) => {
 
 /* ---- admin pages (original used /manage-996j and /prompt-manage) ---- */
 ["/manage", "/manage-996j", "/prompt-manage"].forEach(p =>
-  app.get(p, (_req, res) => res.sendFile(path.join(__dirname, "public", "admin.html"))));
+  app.get(p, requireAdmin, (_req, res) => res.sendFile(path.join(__dirname, "public", "admin.html"))));
 
 // SPA-ish fallback to the app
 app.get("*", (_req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
@@ -204,8 +259,15 @@ function demoReply(agent, text, cfg) {
 
 /* ----------------------------- boot ------------------------------------ */
 app.listen(PORT, () => {
-  const cfg = loadConfig();
+  const cfg = runtimeConfig();
+  const admin = resolveAdminCreds();
   console.log(`\n  依依老师课堂 已启动 →  http://localhost:${PORT}`);
-  console.log(`  管理后台       →  http://localhost:${PORT}/manage`);
+  console.log(`  管理后台       →  http://localhost:${PORT}/manage （需鉴权）`);
+  if (admin.source === "自动生成") {
+    console.log(`  管理账号       →  ${admin.user} / ${admin.pass}  （首次自动生成，已写入 data/config.json）`);
+    console.log(`                  可用环境变量 ADMIN_USER / ADMIN_PASS 覆盖`);
+  } else {
+    console.log(`  管理账号       →  ${admin.user} （密码来源：${admin.source}）`);
+  }
   console.log(`  模型后端       →  ${cfg.apiBase ? "已配置" : "未配置（演示模式）"}\n`);
 });

@@ -25,12 +25,59 @@ npm run dev          # 带 --watch 热重载
 
 ---
 
+## Docker 部署
+
+一键拉起（仓库已含 `Dockerfile` + `docker-compose.yml`）：
+
+```bash
+docker compose up -d --build
+```
+
+- 前台： http://localhost:3000
+- 管理后台： http://localhost:3000/manage
+
+配置说明：
+
+- `./data` 以卷挂载进容器，管理后台改的配置会持久化到宿主机 `data/config.json`。
+- 镜像**不含密钥**。首次部署：把 `data/config.example.json` 复制为 `data/config.json` 并填入 `apiKey`，再启动。
+- 也可不挂配置文件，直接用环境变量覆盖（优先级高于 `config.json`）：
+
+```yaml
+environment:
+  API_BASE: "http://hb.wwszxc.tax:19061/v1"
+  API_KEY: "sk-..."
+```
+
+自定义宿主机端口：`PORT=8080 docker compose up -d --build`。
+
+---
+
+## 管理后台鉴权
+
+`/manage` 及管理 API 已加 HTTP Basic 鉴权，凭据按优先级：
+
+1. 环境变量 `ADMIN_USER` / `ADMIN_PASS`
+2. `data/config.json` 里的 `adminUser` / `adminPass`
+3. 都没有时：**首次启动自动生成强密码**，写入 `data/config.json` 并打印到启动日志（`docker logs yiyi-classroom` 或控制台）。
+
+```yaml
+environment:
+  ADMIN_USER: admin
+  ADMIN_PASS: "your-strong-password"
+```
+
+> 直接调用 `/api/admin/config` 同样需要鉴权，无法绕过页面。
+
+---
+
 ## 项目结构
 
 ```
 .
 ├── server.js              # Express 服务：静态资源 + 配置 API + 聊天代理
 ├── package.json
+├── Dockerfile             # 生产镜像（不含密钥）
+├── docker-compose.yml     # 一键部署
 ├── data/
 │   ├── config.example.json  # 配置模板（已提交，不含密钥）；首次部署复制为 config.json
 │   └── config.json          # 运行时配置（含 API Key，已 gitignore）—— 管理后台直接读写
