@@ -328,8 +328,9 @@ function pushMessage(role, content) {
 async function send() {
   const input = $("#input");
   const text = input.value.trim();
-  if (!text) return;
-  pushMessage("user", text);
+  if (!text && !draftAttachments.length) return;
+  const attachNames = draftAttachments.map(x => x.name).join("、");
+  pushMessage("user", text || (attachNames ? `📎 ${attachNames}` : ""));
   input.value = "";
   autoSize(input);
 
@@ -357,6 +358,8 @@ async function send() {
   saveState();
   $("#btn-send").disabled = false;
   $("#messages").scrollTop = $("#messages").scrollHeight;
+  draftAttachments = [];
+  renderAttachments();
 }
 
 async function callBackend(agent) {
@@ -369,12 +372,68 @@ async function callBackend(agent) {
       model: state.model,
       phase: state.phase,
       messages: convo.map(m => ({ role: m.role, content: m.content })),
+      attachments: draftAttachments.map(a => a.kind === "image"
+        ? { name: a.name, kind: "image", dataUrl: a.dataUrl }
+        : { name: a.name, kind: "text", text: a.text }),
     }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data.reply || "";
 }
+
+/* ----- attachments ----- */
+const TEXT_EXTS = ["txt","md","markdown","csv","tsv","json","html","htm","xml","log","srt","vtt","tex","py","js","ts","jsx","tsx","java","c","cpp","h","hpp","cs","go","rs","rb","php","sql","yml","yaml","ini","conf","sh","bat"];
+const IMG_RE = /\.(png|jpe?g|gif|webp|bmp)$/i;
+const MAX_FILE = 20 * 1024 * 1024;
+let draftAttachments = [];
+
+function readFileEntry(file) {
+  return new Promise((resolve) => {
+    const ext = (file.name.split(".").pop() || "").toLowerCase();
+    const isImg = IMG_RE.test(file.name) || (file.type || "").startsWith("image/");
+    const isText = TEXT_EXTS.includes(ext) || (file.type || "").startsWith("text/");
+    const fr = new FileReader();
+    fr.onerror = () => resolve(null);
+    if (isImg) {
+      fr.onload = () => resolve({ name: file.name, kind: "image", dataUrl: String(fr.result) });
+      fr.readAsDataURL(file);
+    } else if (isText) {
+      fr.onload = () => resolve({ name: file.name, kind: "text", text: String(fr.result) });
+      fr.readAsText(file);
+    } else {
+      resolve({ name: file.name, unsupported: true });
+    }
+  });
+}
+function renderAttachments() {
+  const box = $("#attachment-list");
+  box.innerHTML = "";
+  draftAttachments.forEach((a, i) => {
+    const chip = el("div", "attach-chip",
+      `<span class="attach-ic">${a.kind === "image" ? "🖼️" : "📄"}</span><span class="attach-name"></span>`);
+    chip.querySelector(".attach-name").textContent = a.name;
+    const rm = el("button", "attach-rm", "✕");
+    rm.type = "button"; rm.title = "移除"; rm.setAttribute("aria-label", "移除附件");
+    rm.addEventListener("click", () => { draftAttachments.splice(i, 1); renderAttachments(); });
+    chip.appendChild(rm);
+    box.appendChild(chip);
+  });
+  box.style.display = draftAttachments.length ? "flex" : "none";
+}
+$("#btn-attach").addEventListener("click", () => $("#file-input").click());
+$("#file-input").addEventListener("change", async (e) => {
+  const files = [...(e.target.files || [])];
+  e.target.value = "";
+  for (const f of files) {
+    if (f.size > MAX_FILE) { alert(`「${f.name}」超过 20MB，已跳过`); continue; }
+    const a = await readFileEntry(f);
+    if (!a) { alert(`「${f.name}」读取失败`); continue; }
+    if (a.unsupported) { alert(`暂不支持「${f.name}」，仅支持文本或图片文件（如 .txt/.md/.csv/图片）`); continue; }
+    draftAttachments.push(a);
+  }
+  renderAttachments();
+});
 
 function autoSize(t) {
   t.style.height = "auto";

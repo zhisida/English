@@ -20,7 +20,7 @@ const EXAMPLE_FILES = [
   path.join(__dirname, "config.example.json"),         // 烤进镜像根目录（避免被 data 卷遮蔽）
 ];
 
-app.use(express.json({ limit: "8mb" }));
+app.use(express.json({ limit: "32mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 /* ----------------------------- config store ---------------------------- */
@@ -162,11 +162,14 @@ app.post("/api/chat", async (req, res) => {
     return res.json({ reply: demoReply(agent, lastUserText(messages), cfg), demo: true });
   }
 
-  // 规整对话：丢弃空轮（含前端末尾的空 bot 占位），bot→assistant
-  const turns = messages
-    .map(m => ({ role: m.role === "bot" ? "assistant" : m.role, content: (m.content || "").trim() }))
-    .filter(m => m.role === "system" || m.role === "user" || m.role === "assistant")
-    .filter(m => m.content);
+  // 规整对话：丢弃空轮（含前端末尾的空 bot 占位），bot→assistant；并把附件并入最近一条 user 消息
+  const turns = enrichTurns(
+    messages
+      .map(m => ({ role: m.role === "bot" ? "assistant" : m.role, content: (m.content || "").trim() }))
+      .filter(m => m.role === "system" || m.role === "user" || m.role === "assistant")
+      .filter(m => m.content),
+    req.body.attachments
+  );
 
   try {
     if (cfg.apiKey) {
@@ -245,6 +248,24 @@ function systemPrompt(agent, phase, cfg) {
     `你的职责是：${label}。请就用户提交的内容完成该项工作。`,
     "输出要求：使用简体中文；专业准确、条理清晰；直接给出可用于备课或课堂的成果（必要时用小标题或列表组织）；若信息不足，先简短说明需补充什么，再给出基于现有信息的尽量完整的方案。",
   ].join("\n");
+}
+// 把附件并入最近一条 user 消息：文本拼到正文，图片转 OpenAI vision 的 image_url 多模态结构。
+function enrichTurns(turns, attachments) {
+  if (!Array.isArray(attachments) || !attachments.length) return turns;
+  let lastUser = null;
+  for (let i = turns.length - 1; i >= 0; i--) if (turns[i].role === "user") { lastUser = turns[i]; break; }
+  if (!lastUser) return turns;
+  const texts = attachments.filter(a => a && a.kind === "text" && a.text)
+    .map(a => `【附件：${a.name}】\n${a.text}`);
+  if (texts.length) lastUser.content = (lastUser.content || "") + (lastUser.content ? "\n\n" : "") + texts.join("\n\n");
+  const images = attachments.filter(a => a && a.kind === "image" && a.dataUrl);
+  if (images.length) {
+    lastUser.content = [
+      { type: "text", text: typeof lastUser.content === "string" ? lastUser.content : "" },
+      ...images.map(a => ({ type: "image_url", image_url: { url: a.dataUrl } })),
+    ];
+  }
+  return turns;
 }
 function demoReply(agent, text, cfg) {
   const label = AGENT_LABEL[agent] || "智能体";

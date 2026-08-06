@@ -419,6 +419,23 @@ svg.ic { width: 22px; height: 22px; display: block; }
 .btn-send:hover { background: var(--ui-accent-strong); }
 .btn-send:disabled { opacity: .45; cursor: not-allowed; }
 .btn-send svg { width: 18px; height: 18px; }
+.btn-attach {
+  flex: none; width: 40px; height: 40px; border-radius: 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--ui-muted); background: var(--ui-input-bg); border: 1px solid var(--ui-border);
+  transition: background-color .12s ease, color .12s ease, border-color .12s ease;
+}
+.btn-attach:hover { color: var(--ui-accent); border-color: var(--ui-accent-border); }
+.btn-attach svg { width: 20px; height: 20px; }
+.composer-attachments { display: none; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.attach-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 999px; font-size: 12px; line-height: 1.4;
+  background: var(--ui-input-bg); border: 1px solid var(--ui-border); color: var(--ui-text);
+}
+.attach-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attach-rm { border: none; background: transparent; color: var(--ui-muted-weak); cursor: pointer; font-size: 13px; padding: 0 2px; line-height: 1; }
+.attach-rm:hover { color: var(--ui-accent); }
 
 /* mobile backdrop */
 .backdrop { position: fixed; inset: 0; z-index: 55; background: rgba(0,0,0,.4); opacity: 0; pointer-events: none; transition: opacity .2s ease; }
