@@ -383,28 +383,36 @@ async function callBackend(agent) {
 }
 
 /* ----- attachments ----- */
-const TEXT_EXTS = ["txt","md","markdown","csv","tsv","json","html","htm","xml","log","srt","vtt","tex","py","js","ts","jsx","tsx","java","c","cpp","h","hpp","cs","go","rs","rb","php","sql","yml","yaml","ini","conf","sh","bat"];
 const IMG_RE = /\.(png|jpe?g|gif|webp|bmp)$/i;
 const MAX_FILE = 20 * 1024 * 1024;
 let draftAttachments = [];
+let pasteSeq = 0;
 
-function readFileEntry(file) {
+function readFileEntry(file, name = file.name) {
   return new Promise((resolve) => {
-    const ext = (file.name.split(".").pop() || "").toLowerCase();
     const isImg = IMG_RE.test(file.name) || (file.type || "").startsWith("image/");
-    const isText = TEXT_EXTS.includes(ext) || (file.type || "").startsWith("text/");
     const fr = new FileReader();
     fr.onerror = () => resolve(null);
     if (isImg) {
-      fr.onload = () => resolve({ name: file.name, kind: "image", dataUrl: String(fr.result) });
+      fr.onload = () => resolve({ name, kind: "image", dataUrl: String(fr.result) });
       fr.readAsDataURL(file);
-    } else if (isText) {
-      fr.onload = () => resolve({ name: file.name, kind: "text", text: String(fr.result) });
-      fr.readAsText(file);
     } else {
-      resolve({ name: file.name, unsupported: true });
+      // 非图片一律按文本读取：任意文件均可附加（二进制文件内容可能为乱码）
+      fr.onload = () => resolve({ name, kind: "text", text: String(fr.result) });
+      fr.readAsText(file);
     }
   });
+}
+async function addFile(file, name) {
+  if (file.size > MAX_FILE) { alert(`「${file.name}」超过 20MB，已跳过`); return; }
+  const a = await readFileEntry(file, name);
+  if (!a) { alert(`「${file.name}」读取失败`); return; }
+  draftAttachments.push(a);
+}
+function clipboardName(file) {
+  if (file.name && file.name.trim() && /\.\w+$/.test(file.name)) return file.name;
+  const ext = (file.type && file.type.includes("/")) ? file.type.split("/")[1].replace("jpeg", "jpg") : "bin";
+  return `粘贴文件-${++pasteSeq}.${ext}`;
 }
 function renderAttachments() {
   const box = $("#attachment-list");
@@ -425,14 +433,24 @@ $("#btn-attach").addEventListener("click", () => $("#file-input").click());
 $("#file-input").addEventListener("change", async (e) => {
   const files = [...(e.target.files || [])];
   e.target.value = "";
-  for (const f of files) {
-    if (f.size > MAX_FILE) { alert(`「${f.name}」超过 20MB，已跳过`); continue; }
-    const a = await readFileEntry(f);
-    if (!a) { alert(`「${f.name}」读取失败`); continue; }
-    if (a.unsupported) { alert(`暂不支持「${f.name}」，仅支持文本或图片文件（如 .txt/.md/.csv/图片）`); continue; }
-    draftAttachments.push(a);
-  }
+  for (const f of files) await addFile(f);
   renderAttachments();
+});
+// Ctrl+V：剪切板中的文件 / 图片自动添加为附件（纯文本仍正常粘贴进输入框）
+$("#input").addEventListener("paste", (e) => {
+  const items = [...((e.clipboardData && e.clipboardData.items) || [])];
+  const files = [];
+  for (const it of items) {
+    if (it.kind !== "file") continue;
+    const f = it.getAsFile();
+    if (f) files.push(f);
+  }
+  if (!files.length) return;   // 无文件 → 交由输入框按纯文本粘贴
+  e.preventDefault();          // 有文件 → 阻止默认插入，改为附加
+  (async () => {
+    for (const f of files) await addFile(f, clipboardName(f));
+    renderAttachments();
+  })();
 });
 
 function autoSize(t) {
