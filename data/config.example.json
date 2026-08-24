@@ -1,10 +1,10 @@
 {
   "appTitle": "依依老师课堂",
   "subtitle": "",
-  "apiBase": "http://hb.wwszxc.tax:19061/v1",
-  "apiKey": "",
-  "defaultModel": "glm-5.2",
+  "apiBase": "https://api.bianxie.ai/v1",
+  "apiKey": "sk-6WAE18opZQSeX91c0Hq76v7aLKzP3amJ8FXd3rknF9R07gc5",
+  "defaultModel": "gpt-5.6",
   "models": [
-    { "id": "glm-5.2", "label": "GLM-5.2", "enabled": true }
+    { "id": "gpt-5.6", "label": "gpt-5.6", "enabled": true }
   ]
 }
